@@ -23,6 +23,7 @@ import (
 	weakrand "math/rand"
 	"net"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -97,8 +98,8 @@ func (LowestLatencySelection) CaddyModule() caddy.ModuleInfo {
 // Select returns an available host, if any.
 func (r *LowestLatencySelection) Select(pool UpstreamPool, request *http.Request, _ http.ResponseWriter) *Upstream {
 	spew.Dump(r.policy)
-	u := selectLowestLatencyHost(pool)
-	return r.policy.Select([]*Upstream{u}, request, nil)
+	filteredPool := selectLowestLatencyHosts(pool)
+	return r.policy.Select(filteredPool, request, nil)
 }
 
 // Provision sets up the module.
@@ -141,20 +142,27 @@ func (r *LowestLatencySelection) UnmarshalCaddyfile(d *caddyfile.Dispenser) erro
 }
 
 // selectLowestLatencyHost returns the host with the lowest latency
-func selectLowestLatencyHost(pool []*Upstream) *Upstream {
-	var lowestLatencyUpstream *Upstream
-	for _, upstream := range pool {
-		if !upstream.Available() {
-			continue
-		}
+func selectLowestLatencyHosts(pool []*Upstream) []*Upstream {
+	drift := int32(5)
+	poolCopy := make([]*Upstream, len(pool))
+	_ = copy(poolCopy, pool)
 
-		if lowestLatencyUpstream == nil {
-			lowestLatencyUpstream = upstream
-		} else if upstream.latency < lowestLatencyUpstream.latency {
-			lowestLatencyUpstream = upstream
+	sort.Slice(poolCopy, func(i, j int) bool {
+		return poolCopy[i].latency < poolCopy[j].latency
+	})
+
+	lowestLatencyUpstreams := []*Upstream{}
+	for i, u := range poolCopy {
+		if i == 0 {
+			lowestLatencyUpstreams = append(lowestLatencyUpstreams, u)
+		} else if (u.latency - lowestLatencyUpstreams[0].latency) < drift {
+			lowestLatencyUpstreams = append(lowestLatencyUpstreams, u)
+		} else {
+			break
 		}
 	}
-	return lowestLatencyUpstream
+
+	return lowestLatencyUpstreams
 }
 
 // WeightedRoundRobinSelection is a policy that selects
