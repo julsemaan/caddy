@@ -136,7 +136,6 @@ func (r *LowestLatencySelection) UnmarshalCaddyfile(d *caddyfile.Dispenser) erro
 		}
 	}
 
-	fmt.Println("SETUP OK")
 	return nil
 }
 
