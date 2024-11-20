@@ -38,6 +38,7 @@ import (
 
 func init() {
 	caddy.RegisterModule(RandomSelection{})
+	caddy.RegisterModule(LowestLatencySelection{})
 	caddy.RegisterModule(RandomChoiceSelection{})
 	caddy.RegisterModule(LeastConnSelection{})
 	caddy.RegisterModule(RoundRobinSelection{})
@@ -75,6 +76,50 @@ func (r *RandomSelection) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 		return d.ArgErr()
 	}
 	return nil
+}
+
+// LowestLatencySelection is a policy that selects
+// an available host at random.
+type LowestLatencySelection struct{}
+
+// CaddyModule returns the Caddy module information.
+func (LowestLatencySelection) CaddyModule() caddy.ModuleInfo {
+	return caddy.ModuleInfo{
+		ID:  "http.reverse_proxy.selection_policies.lowest_latency",
+		New: func() caddy.Module { return new(LowestLatencySelection) },
+	}
+}
+
+// Select returns an available host, if any.
+func (r LowestLatencySelection) Select(pool UpstreamPool, request *http.Request, _ http.ResponseWriter) *Upstream {
+	return selectLowestLatencyHost(pool)
+}
+
+// UnmarshalCaddyfile sets up the module from Caddyfile tokens.
+func (r *LowestLatencySelection) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
+	d.Next() // consume policy name
+	if d.NextArg() {
+		return d.ArgErr()
+	}
+	return nil
+}
+
+// selectLowestLatencyHost returns the host with the lowest latency
+func selectLowestLatencyHost(pool []*Upstream) *Upstream {
+	var lowestLatencyUpstream *Upstream
+	for _, upstream := range pool {
+		if !upstream.Available() {
+			continue
+		}
+
+		if lowestLatencyUpstream == nil {
+			lowestLatencyUpstream = upstream
+		} else if upstream.latency < lowestLatencyUpstream.latency {
+			lowestLatencyUpstream = upstream
+		}
+	}
+	fmt.Println("lowest latency says", lowestLatencyUpstream)
+	return lowestLatencyUpstream
 }
 
 // WeightedRoundRobinSelection is a policy that selects
@@ -879,6 +924,7 @@ func loadFallbackPolicy(d *caddyfile.Dispenser) (json.RawMessage, error) {
 // Interface guards
 var (
 	_ Selector = (*RandomSelection)(nil)
+	_ Selector = (*LowestLatencySelection)(nil)
 	_ Selector = (*RandomChoiceSelection)(nil)
 	_ Selector = (*LeastConnSelection)(nil)
 	_ Selector = (*RoundRobinSelection)(nil)
