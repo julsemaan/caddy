@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash/v2"
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig"
@@ -81,7 +82,7 @@ func (r *RandomSelection) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 // LowestLatencySelection is a policy that selects
 // an available host at random.
 type LowestLatencySelection struct {
-	PolicyRaw json.RawMessage `json:"fallback,omitempty" caddy:"namespace=http.reverse_proxy.selection_policies inline_key=policy"`
+	PolicyRaw json.RawMessage `json:"chain_policy,omitempty" caddy:"namespace=http.reverse_proxy.selection_policies inline_key=policy"`
 	policy    Selector
 }
 
@@ -95,6 +96,7 @@ func (LowestLatencySelection) CaddyModule() caddy.ModuleInfo {
 
 // Select returns an available host, if any.
 func (r *LowestLatencySelection) Select(pool UpstreamPool, request *http.Request, _ http.ResponseWriter) *Upstream {
+	spew.Dump(r.policy)
 	return selectLowestLatencyHost(pool)
 }
 
@@ -108,7 +110,6 @@ func (r *LowestLatencySelection) Provision(ctx caddy.Context) error {
 		return fmt.Errorf("loading policy selection policy: %s", err)
 	}
 	r.policy = mod.(Selector)
-	fmt.Println(r.policy)
 	return nil
 }
 
@@ -123,7 +124,7 @@ func (r *LowestLatencySelection) UnmarshalCaddyfile(d *caddyfile.Dispenser) erro
 				return d.ArgErr()
 			}
 			if r.PolicyRaw != nil {
-				return d.Err("fallback selection policy already specified")
+				return d.Err("policy selection policy already specified")
 			}
 			mod, err := loadFallbackPolicy(d)
 			if err != nil {
@@ -134,6 +135,8 @@ func (r *LowestLatencySelection) UnmarshalCaddyfile(d *caddyfile.Dispenser) erro
 			return d.Errf("unrecognized option '%s'", d.Val())
 		}
 	}
+
+	fmt.Println("SETUP OK")
 	return nil
 }
 

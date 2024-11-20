@@ -42,7 +42,6 @@ import (
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp/headers"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp/rewrite"
-	"github.com/davecgh/go-spew/spew"
 )
 
 func init() {
@@ -338,7 +337,6 @@ func (h *Handler) Provision(ctx caddy.Context) error {
 		h.provisionUpstream(u)
 	}
 
-	spew.Dump("HEALTH CHECKS START", h.HealthChecks)
 	if h.HealthChecks != nil {
 		// set defaults on passive health checks, if necessary
 		if h.HealthChecks.Passive != nil {
