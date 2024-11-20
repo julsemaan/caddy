@@ -97,7 +97,8 @@ func (LowestLatencySelection) CaddyModule() caddy.ModuleInfo {
 // Select returns an available host, if any.
 func (r *LowestLatencySelection) Select(pool UpstreamPool, request *http.Request, _ http.ResponseWriter) *Upstream {
 	spew.Dump(r.policy)
-	return selectLowestLatencyHost(pool)
+	u := selectLowestLatencyHost(pool)
+	return r.policy.Select([]*Upstream{u}, request, nil)
 }
 
 // Provision sets up the module.
