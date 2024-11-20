@@ -80,7 +80,10 @@ func (r *RandomSelection) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 // LowestLatencySelection is a policy that selects
 // an available host at random.
-type LowestLatencySelection struct{}
+type LowestLatencySelection struct {
+	PolicyRaw json.RawMessage `json:"fallback,omitempty" caddy:"namespace=http.reverse_proxy.selection_policies inline_key=policy"`
+	policy    Selector
+}
 
 // CaddyModule returns the Caddy module information.
 func (LowestLatencySelection) CaddyModule() caddy.ModuleInfo {
@@ -91,15 +94,45 @@ func (LowestLatencySelection) CaddyModule() caddy.ModuleInfo {
 }
 
 // Select returns an available host, if any.
-func (r LowestLatencySelection) Select(pool UpstreamPool, request *http.Request, _ http.ResponseWriter) *Upstream {
+func (r *LowestLatencySelection) Select(pool UpstreamPool, request *http.Request, _ http.ResponseWriter) *Upstream {
 	return selectLowestLatencyHost(pool)
+}
+
+// Provision sets up the module.
+func (r *LowestLatencySelection) Provision(ctx caddy.Context) error {
+	if r.PolicyRaw == nil {
+		r.PolicyRaw = caddyconfig.JSONModuleObject(RandomSelection{}, "policy", "random", nil)
+	}
+	mod, err := ctx.LoadModule(r, "PolicyRaw")
+	if err != nil {
+		return fmt.Errorf("loading policy selection policy: %s", err)
+	}
+	r.policy = mod.(Selector)
+	fmt.Println(r.policy)
+	return nil
 }
 
 // UnmarshalCaddyfile sets up the module from Caddyfile tokens.
 func (r *LowestLatencySelection) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	d.Next() // consume policy name
-	if d.NextArg() {
-		return d.ArgErr()
+
+	for d.NextBlock(0) {
+		switch d.Val() {
+		case "policy":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			if r.PolicyRaw != nil {
+				return d.Err("fallback selection policy already specified")
+			}
+			mod, err := loadFallbackPolicy(d)
+			if err != nil {
+				return err
+			}
+			r.PolicyRaw = mod
+		default:
+			return d.Errf("unrecognized option '%s'", d.Val())
+		}
 	}
 	return nil
 }
