@@ -118,7 +118,6 @@ func selectLowestLatencyHost(pool []*Upstream) *Upstream {
 			lowestLatencyUpstream = upstream
 		}
 	}
-	fmt.Println("lowest latency says", lowestLatencyUpstream)
 	return lowestLatencyUpstream
 }
 

@@ -512,6 +512,7 @@ func (h *Handler) proxyLoopIteration(r *http.Request, origReq *http.Request, w h
 	if c := h.logger.Check(zapcore.DebugLevel, "selected upstream"); c != nil {
 		c.Write(
 			zap.String("dial", dialInfo.Address),
+			zap.Int("latency", int(upstream.latency)),
 			zap.Int("total_upstreams", len(upstreams)),
 		)
 	}

@@ -34,7 +34,6 @@ import (
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
-	"github.com/davecgh/go-spew/spew"
 )
 
 // HealthChecks configures active and passive health checks.
@@ -298,9 +297,6 @@ func (h *Handler) activeHealthChecker() {
 // doActiveHealthCheckForAllHosts immediately performs a
 // health checks for all upstream hosts configured by h.
 func (h *Handler) doActiveHealthCheckForAllHosts() {
-	//spew.Config.DisableMethods = true
-	//spew.Config.DisablePointerMethods = true
-	spew.Dump("doActiveHealthCheckForAllHosts h.Upstreams", h.Upstreams)
 	for _, upstream := range h.Upstreams {
 		go func(upstream *Upstream) {
 			defer func() {
