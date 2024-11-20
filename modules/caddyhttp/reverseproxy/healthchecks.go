@@ -26,6 +26,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -33,6 +34,7 @@ import (
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
+	"github.com/davecgh/go-spew/spew"
 )
 
 // HealthChecks configures active and passive health checks.
@@ -296,6 +298,9 @@ func (h *Handler) activeHealthChecker() {
 // doActiveHealthCheckForAllHosts immediately performs a
 // health checks for all upstream hosts configured by h.
 func (h *Handler) doActiveHealthCheckForAllHosts() {
+	//spew.Config.DisableMethods = true
+	//spew.Config.DisablePointerMethods = true
+	spew.Dump("doActiveHealthCheckForAllHosts h.Upstreams", h.Upstreams)
 	for _, upstream := range h.Upstreams {
 		go func(upstream *Upstream) {
 			defer func() {
@@ -494,7 +499,10 @@ func (h *Handler) doActiveHealthCheck(dialInfo DialInfo, hostAddr string, networ
 	}
 
 	// do the request, being careful to tame the response body
+	requestStart := time.Now()
 	resp, err := h.HealthChecks.Active.httpClient.Do(req)
+	latencyMs := time.Since(requestStart) / time.Millisecond
+	atomic.StoreInt32(&upstream.latency, int32(latencyMs))
 	if err != nil {
 		if c := h.HealthChecks.Active.logger.Check(zapcore.InfoLevel, "HTTP request failed"); c != nil {
 			c.Write(

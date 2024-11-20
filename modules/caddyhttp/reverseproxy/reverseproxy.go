@@ -42,6 +42,7 @@ import (
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp/headers"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp/rewrite"
+	"github.com/davecgh/go-spew/spew"
 )
 
 func init() {
@@ -337,6 +338,7 @@ func (h *Handler) Provision(ctx caddy.Context) error {
 		h.provisionUpstream(u)
 	}
 
+	spew.Dump("HEALTH CHECKS START", h.HealthChecks)
 	if h.HealthChecks != nil {
 		// set defaults on passive health checks, if necessary
 		if h.HealthChecks.Passive != nil {
@@ -461,7 +463,8 @@ func (h *Handler) proxyLoopIteration(r *http.Request, origReq *http.Request, w h
 ) (bool, error) {
 	// get the updated list of upstreams
 	upstreams := h.Upstreams
-	if h.DynamicUpstreams != nil {
+	if h.DynamicUpstreams != nil && len(h.Upstreams) == 0 {
+		fmt.Println("refreshing dynamic upstreams")
 		dUpstreams, err := h.DynamicUpstreams.GetUpstreams(r)
 		if err != nil {
 			if c := h.logger.Check(zapcore.ErrorLevel, "failed getting dynamic upstreams; falling back to static upstreams"); c != nil {
@@ -469,19 +472,20 @@ func (h *Handler) proxyLoopIteration(r *http.Request, origReq *http.Request, w h
 			}
 		} else {
 			upstreams = dUpstreams
+			h.Upstreams = dUpstreams
 			for _, dUp := range dUpstreams {
 				h.provisionUpstream(dUp)
 			}
 			if c := h.logger.Check(zapcore.DebugLevel, "provisioned dynamic upstreams"); c != nil {
 				c.Write(zap.Int("count", len(dUpstreams)))
 			}
-			defer func() {
-				// these upstreams are dynamic, so they are only used for this iteration
-				// of the proxy loop; be sure to let them go away when we're done with them
-				for _, upstream := range dUpstreams {
-					_, _ = hosts.Delete(upstream.String())
-				}
-			}()
+			//defer func() {
+			//	// these upstreams are dynamic, so they are only used for this iteration
+			//	// of the proxy loop; be sure to let them go away when we're done with them
+			//	for _, upstream := range dUpstreams {
+			//		_, _ = hosts.Delete(upstream.String())
+			//	}
+			//}()
 		}
 	}
 

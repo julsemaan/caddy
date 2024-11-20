@@ -62,12 +62,15 @@ type Upstream struct {
 	healthCheckPolicy         *PassiveHealthChecks
 	cb                        CircuitBreaker
 	unhealthy                 int32 // accessed atomically; status from active health checker
+	latency                   int32 // for atomic usage
 }
 
 // (pointer receiver necessary to avoid a race condition, since
 // copying the Upstream reads the 'unhealthy' field which is
 // accessed atomically)
-func (u *Upstream) String() string { return u.Dial }
+func (u *Upstream) String() string {
+	return fmt.Sprintf("%s lat:%d healthy:%t", u.Dial, atomic.LoadInt32(&u.latency), u.Healthy())
+}
 
 // Available returns true if the remote host
 // is available to receive requests. This is
