@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash/v2"
-	"github.com/davecgh/go-spew/spew"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig"
@@ -97,7 +96,6 @@ func (LowestLatencySelection) CaddyModule() caddy.ModuleInfo {
 
 // Select returns an available host, if any.
 func (r *LowestLatencySelection) Select(pool UpstreamPool, request *http.Request, _ http.ResponseWriter) *Upstream {
-	spew.Dump(r.policy)
 	filteredPool := selectLowestLatencyHosts(pool)
 	return r.policy.Select(filteredPool, request, nil)
 }
